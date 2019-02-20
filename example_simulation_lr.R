@@ -118,9 +118,9 @@ x_test = t(apply(presample_test, 1, function(x)(x-norm_param$mean)/norm_param$sd
 
 # ##############################################
 # Train the autoencoder with the pretrained samples
-source("autoencoder_hmc.R")
+source("autoencoder_trainer.R")
 tic("Training autoencoder")
-autoencoder_results = autoencoder_hmc(x_train, x_test, model_savepath = "model_pretrain_autoencoder.hdf5", ncol_hidden_layer = hidden_dim, ncol_latent_layer = latent_dim, num_epoch = 1000, num_batchsize = 64, early.stop = TRUE, patience = 10)
+autoencoder_results = autoencoder_trainer(x_train, x_test, model_savepath = "model_pretrain_autoencoder.hdf5", ncol_hidden_layer = hidden_dim, ncol_latent_layer = latent_dim, num_epoch = 1000, num_batchsize = 64, early.stop = TRUE, patience = 10)
 toc()
 
 loss_history = autoencoder_results$Hist
@@ -193,7 +193,7 @@ gK_latent = function(p_h, data){
 }
 
 ## Implement HMC with autoencoder with correction
-source("hmc_autoencoder_correction.R")
+source("hmc_lr_autoencoding.R")
 logistic_hmc_autoencoder = function(start, data, new_data, param, encoder,decoder, norm_param_autoencoder_input, autoencoder_weights, L, epsilon,max.iter){
   acc_sum = 0
   beta.vec = matrix(0, max.iter, m)
@@ -202,7 +202,7 @@ logistic_hmc_autoencoder = function(start, data, new_data, param, encoder,decode
   current_beta = beta.vec[1,]
 
   for (i in 2:max.iter){
-    result = hmc_autoencoder_correction(U, gU_latent, gK_latent, encoder, decoder,norm_param_autoencoder_input, autoencoder_weights, epsilon, L, current_beta, data, new_data, param)
+    result = hmc_lr_autoencoding(U, gU_latent, gK_latent, encoder, decoder,norm_param_autoencoder_input, autoencoder_weights, epsilon, L, current_beta, data, new_data, param)
     beta.vec[i,] = result$sample
     current_beta = beta.vec[i,]
     acc_sum = acc_sum + result$acc
@@ -213,7 +213,7 @@ logistic_hmc_autoencoder = function(start, data, new_data, param, encoder,decode
 }
 
 tic("HMC with autoencoder sampling")
-source("hmc_autoencoder_correction.R")
+source("hmc_lr_autoencoding.R")
 hmc_samples = logistic_hmc_autoencoder(start = next_hmc_init, data, new_data, param, encoder, decoder,norm_param_autoencoder_input = norm_param, autoencoder_weights, 10, 0.032, 2000)
 toc()
 

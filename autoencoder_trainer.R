@@ -1,7 +1,7 @@
 # autoencoder for hmc samples
 library(keras)
 use_session_with_seed(42)
-autoencoder_hmc = function(x_train, x_test, model_savepath, ncol_hidden_layer, ncol_latent_layer, num_epoch, num_batchsize, early.stop, patience){
+autoencoder_trainer = function(x_train, x_test, model_savepath, ncol_hidden_layer, ncol_latent_layer, num_epoch, num_batchsize, early.stop, patience){
 
   # Model definition
   input <- layer_input(shape = c(ncol(x_train)))

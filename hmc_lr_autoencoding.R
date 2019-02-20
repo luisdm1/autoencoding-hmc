@@ -1,5 +1,5 @@
 # HMC with autoencoder for regression
-hmc_autoencoder_correction = function(U, gU_latent, gK_latent, encoder, decoder,norm_param_autoencoder_input, autoencoder_weights, epsilon, L, current_q, data, new_data, param){
+hmc_lr_autoencoding = function(U, gU_latent, gK_latent, encoder, decoder,norm_param_autoencoder_input, autoencoder_weights, epsilon, L, current_q, data, new_data, param){
 
   q = current_q
   p = rnorm(length(q),0,1)
