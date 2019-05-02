@@ -7,6 +7,8 @@ library("MASS")
 library("purrr")
 library("tictoc")
 library("mcmcse")
+library("reshape2")
+library("coda")
 
 #####################################################################
 #                       Simulate Data                               #
@@ -132,11 +134,57 @@ decoder = autoencoder_results$Decoder
 
 # model_pretrain_autoencoder <- load_model_hdf5("model_pretrain_autoencoder.hdf5", compile = FALSE)
 
-# # Check reconstruction of the test data
+##### Check reconstruction of the test data####
 # ggpairs(data=data.frame(x_test), columns = 1:5, lower = list(continuous = wrap("points", size=0.1)))
 #
 # reconstruction <- predict(model_pretrain_autoencoder, x_test)
 # ggpairs(data=data.frame(reconstruction), columns = 1:5, lower = list(continuous = wrap("points", size=0.1)))
+
+# so far: take presample_train samples (those which lead acc rate=1), 
+# stardardadize these samples, train autoencoder, predict for same samples,
+# un-standardize by same mean and sd and compare densities
+
+x_trained = presample_test
+x_trained_predicted = predict(model_pretrain_autoencoder, x_trained)
+# mean_pred = apply(x_trained_predicted,2,mean)
+# sd_pred = apply(x_trained_predicted,2,sd)
+# norm_param_pred = list(mean = mean_pred, sd = sd_pred)
+x_trained_predicted = t(apply(x_trained_predicted, 1, function(x)(x*norm_param$sd+norm_param$mean)))
+
+colnames(x_trained) = paste0("Beta", 1:m)
+colnames(x_trained_predicted) = paste0("Beta", 1:m)
+names(beta.T)= paste0("Beta", 1:m)
+
+set.seed(12345)
+ix_params = sort(sample(1:m, 20))
+x_trained_sub = melt(x_trained[,ix_params])
+x_trained_sub$type = "input"
+x_trained_predicted_sub = melt(x_trained_predicted[,ix_params])
+x_trained_predicted_sub$type = "decoded"
+
+true_params = melt(beta.T[ix_params])
+true_params$iter = 0
+true_params$param = names(beta.T[ix_params])
+true_params$type = "true"
+true_params = true_params[,c("iter", "param", "value", "type")]
+
+df_pretrain_reconstructed = data.frame(rbind(x_trained_sub, x_trained_predicted_sub))
+
+names(df_pretrain_reconstructed)=c("iter", "param", "value", "type")
+df_pretrain_reconstructed = rbind(df_pretrain_reconstructed, true_params)
+
+ggplot(data=df_pretrain_reconstructed, 
+       aes(x=value))+
+  geom_density(data=df_pretrain_reconstructed[df_pretrain_reconstructed$type!="true",],
+               aes(fill=type),alpha=0.4)+
+  geom_segment(data=df_pretrain_reconstructed[df_pretrain_reconstructed$type=="true",],
+             aes(x=value,y=0, xend=value,yend=1.5),size=1,col="blue",linetype="dashed")+
+  facet_wrap(~param)+
+  #coord_cartesian(ylim = c(0, 2),xlim=c(-12.5,12.5))+
+  ggtitle(label = "Comparing input vs decoded output of trained autoencoder (98 HMC input samples)")->p
+
+ggsave(p,filename = "input_vs_decoded_hmc_train_samples.pdf",width = 15,height = 10,dpi = 500)
+
 
 # Get encoder and decoder weights
 library(keras)
@@ -218,10 +266,10 @@ hmc_samples = logistic_hmc_autoencoder(start = next_hmc_init, data, new_data, pa
 toc()
 
 saveRDS(hmc_samples, "data/samples_auto_encoding_hmc_lr_correction.rds")
-hmc_samples <- readRDS("data/samples_auto_encoding_hmc_lr_correction.rds")
+ae_hmc_samples <- readRDS("data/samples_auto_encoding_hmc_lr_correction.rds")
 
 # Plot and check sample autocorrelaiton
-plot(hmc_samples[,1], type = 'l')
+plot(ae_hmc_samples[,1], type = 'l')
 
 #####################################################################
 #                       Standard HMC                                #
